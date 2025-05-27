@@ -1,177 +1,177 @@
-import pkg from 'pg';
-const { Pool } = pkg;
+import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-let pool;
+let client;
+let db;
 
 export async function connectDatabase() {
   try {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI is not defined in environment variables');
+    }
 
-    // Test connection
-    const client = await pool.connect();
+    client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    db = client.db();
     console.log('✅ Database connected successfully');
-    client.release();
-    
-    return pool;
   } catch (error) {
     console.error('❌ Database connection failed:', error);
     throw error;
   }
 }
 
+export function getDB() {
+  if (!db) {
+    throw new Error('Database not connected. Call connectDatabase() first.');
+  }
+  return db;
+}
+
+export function getUserServersCollection() {
+  return getDB().collection('userServers');
+}
+
+export function getServersCollection() {
+  return getDB().collection('servers');
+}
+
+export function getUsersCollection() {
+  return getDB().collection('users');
+}
+
+export function getChannelConfigsCollection() {
+  return getDB().collection('channelConfigs');
+}
+
+export function getAchievementsCollection() {
+  return getDB().collection('achievements');
+}
+
+export function getBackgroundsCollection() {
+  return getDB().collection('backgrounds');
+}
+
+export function getActivityLogsCollection() {
+  return getDB().collection('activityLogs');
+}
+
 export async function getUserServerData(userId, serverId) {
   try {
-    if (!pool) await connectDatabase();
+    const collection = getUserServersCollection();
+    const result = await collection.findOne({ 
+      userId: userId, 
+      serverId: serverId 
+    });
     
-    const result = await pool.query(
-      'SELECT * FROM user_servers WHERE user_id = $1 AND server_id = $2',
-      [userId, serverId]
-    );
-    
-    return result.rows[0] || null;
+    return result || null;
   } catch (error) {
-    console.error('Error fetching user server data:', error);
+    console.error('Error getting user server data:', error);
     return null;
   }
 }
 
 export async function createUserServerData(userData) {
   try {
-    if (!pool) await connectDatabase();
-    
-    const result = await pool.query(`
-      INSERT INTO user_servers (user_id, server_id, xp, level, points, total_messages, total_voice_time, profile_card)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `, [
-      userData.userId,
-      userData.serverId,
-      userData.xp || 0,
-      userData.level || 1,
-      userData.points || 0,
-      userData.totalMessages || 0,
-      userData.totalVoiceTime || 0,
-      userData.profileCard || { accentColor: '#5865F2', progressGradient: ['#5865F2', '#FF73FA'] }
-    ]);
-    
-    return result.rows[0];
+    const collection = getUserServersCollection();
+    const result = await collection.insertOne(userData);
+    return { ...userData, _id: result.insertedId };
   } catch (error) {
     console.error('Error creating user server data:', error);
-    return null;
+    throw error;
   }
 }
 
 export async function updateUserServerData(userId, serverId, updates) {
   try {
-    if (!pool) await connectDatabase();
-    
-    const setClause = [];
-    const values = [];
-    let paramIndex = 1;
-    
-    for (const [key, value] of Object.entries(updates)) {
-      // Convert camelCase to snake_case
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      setClause.push(`${dbKey} = $${paramIndex}`);
-      values.push(value);
-      paramIndex++;
-    }
-    
-    values.push(userId, serverId);
-    
-    const query = `
-      UPDATE user_servers 
-      SET ${setClause.join(', ')}
-      WHERE user_id = $${paramIndex} AND server_id = $${paramIndex + 1}
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, values);
-    return result.rows[0];
+    const collection = getUserServersCollection();
+    await collection.updateOne(
+      { userId: userId, serverId: serverId },
+      { $set: updates }
+    );
   } catch (error) {
     console.error('Error updating user server data:', error);
-    return null;
+    throw error;
   }
 }
 
 export async function ensureUserExists(userId, username, discriminator, avatar) {
   try {
-    if (!pool) await connectDatabase();
+    const collection = getUsersCollection();
+    const existingUser = await collection.findOne({ id: userId });
     
-    const result = await pool.query(`
-      INSERT INTO users (id, username, discriminator, avatar)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (id) DO UPDATE SET
-        username = EXCLUDED.username,
-        discriminator = EXCLUDED.discriminator,
-        avatar = EXCLUDED.avatar
-      RETURNING *
-    `, [userId, username, discriminator, avatar]);
+    if (!existingUser) {
+      const userData = {
+        id: userId,
+        username: username,
+        discriminator: discriminator || '0000',
+        avatar: avatar,
+        createdAt: new Date()
+      };
+      
+      await collection.insertOne(userData);
+      return userData;
+    }
     
-    return result.rows[0];
+    return existingUser;
   } catch (error) {
     console.error('Error ensuring user exists:', error);
-    return null;
+    throw error;
   }
 }
 
 export async function ensureServerExists(serverId, serverName, iconUrl, ownerId) {
   try {
-    if (!pool) await connectDatabase();
+    const collection = getServersCollection();
+    const existingServer = await collection.findOne({ id: serverId });
     
-    const result = await pool.query(`
-      INSERT INTO servers (id, name, icon, owner_id)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        icon = EXCLUDED.icon
-      RETURNING *
-    `, [serverId, serverName, iconUrl, ownerId]);
+    if (!existingServer) {
+      const serverData = {
+        id: serverId,
+        name: serverName,
+        icon: iconUrl,
+        ownerId: ownerId,
+        createdAt: new Date()
+      };
+      
+      await collection.insertOne(serverData);
+      return serverData;
+    }
     
-    return result.rows[0];
+    return existingServer;
   } catch (error) {
     console.error('Error ensuring server exists:', error);
-    return null;
+    throw error;
   }
 }
 
 export async function getChannelConfig(channelId, serverId) {
   try {
-    if (!pool) await connectDatabase();
+    const collection = getChannelConfigsCollection();
+    const config = await collection.findOne({ 
+      channelId: channelId, 
+      serverId: serverId 
+    });
     
-    const result = await pool.query(
-      'SELECT * FROM channel_configs WHERE channel_id = $1 AND server_id = $2',
-      [channelId, serverId]
-    );
-    
-    return result.rows[0] || null;
+    return config || { 
+      messageXpMultiplier: 1.0, 
+      voiceXpMultiplier: 1.0, 
+      isActive: true 
+    };
   } catch (error) {
-    console.error('Error fetching channel config:', error);
-    return null;
+    console.error('Error getting channel config:', error);
+    return { messageXpMultiplier: 1.0, voiceXpMultiplier: 1.0, isActive: true };
   }
 }
 
 export async function logActivity(activityData) {
   try {
-    if (!pool) await connectDatabase();
-    
-    await pool.query(`
-      INSERT INTO activity_logs (user_id, server_id, channel_id, type, xp_gained, metadata)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [
-      activityData.userId,
-      activityData.serverId,
-      activityData.channelId,
-      activityData.type,
-      activityData.xpGained || 0,
-      JSON.stringify(activityData.metadata || {})
-    ]);
+    const collection = getActivityLogsCollection();
+    await collection.insertOne({
+      ...activityData,
+      timestamp: new Date()
+    });
   } catch (error) {
     console.error('Error logging activity:', error);
   }
@@ -179,37 +179,36 @@ export async function logActivity(activityData) {
 
 export async function getUserRank(userId, serverId) {
   try {
-    if (!pool) await connectDatabase();
+    const collection = getUserServersCollection();
+    const userRank = await collection.aggregate([
+      { $match: { serverId: serverId } },
+      { $sort: { xp: -1 } },
+      { $group: { 
+          _id: null, 
+          users: { $push: { userId: "$userId", xp: "$xp" } } 
+        }
+      },
+      { $unwind: { path: "$users", includeArrayIndex: "rank" } },
+      { $match: { "users.userId": userId } },
+      { $project: { rank: { $add: ["$rank", 1] }, xp: "$users.xp" } }
+    ]).toArray();
     
-    const result = await pool.query(`
-      SELECT COUNT(*) + 1 as rank
-      FROM user_servers 
-      WHERE server_id = $1 AND xp > (
-        SELECT xp FROM user_servers WHERE user_id = $2 AND server_id = $1
-      )
-    `, [serverId, userId]);
-    
-    return parseInt(result.rows[0].rank) || 1;
+    return userRank[0] || { rank: null, xp: 0 };
   } catch (error) {
     console.error('Error getting user rank:', error);
-    return 1;
+    return { rank: null, xp: 0 };
   }
 }
 
 export async function getTopUsers(serverId, limit = 10) {
   try {
-    if (!pool) await connectDatabase();
+    const collection = getUserServersCollection();
+    const topUsers = await collection.find({ serverId: serverId })
+      .sort({ xp: -1 })
+      .limit(limit)
+      .toArray();
     
-    const result = await pool.query(`
-      SELECT us.*, u.username, u.discriminator, u.avatar
-      FROM user_servers us
-      JOIN users u ON us.user_id = u.id
-      WHERE us.server_id = $1
-      ORDER BY us.xp DESC
-      LIMIT $2
-    `, [serverId, limit]);
-    
-    return result.rows;
+    return topUsers;
   } catch (error) {
     console.error('Error getting top users:', error);
     return [];
