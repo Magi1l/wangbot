@@ -58,11 +58,18 @@ for (const file of eventFiles) {
 client.once('ready', async () => {
   console.log(`✅ ${client.user.tag} is online!`);
   
-  // Connect to database
-  await connectDatabase();
-  
-  // Set bot status
-  client.user.setActivity('레벨링 시스템 | /프로필', { type: 'WATCHING' });
+  try {
+    // Connect to database
+    await connectDatabase();
+    
+    // Set bot status
+    client.user.setActivity('레벨링 시스템 | /profile', { type: 'WATCHING' });
+    
+    console.log('🎉 봇이 완전히 준비되었습니다!');
+  } catch (error) {
+    console.error('❌ 봇 초기화 중 오류:', error);
+    // 데이터베이스 연결 실패해도 봇은 계속 실행
+  }
 });
 
 // Handle interactions
@@ -90,16 +97,28 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Error handling
+// Enhanced error handling
 client.on('error', error => {
-  console.error('Discord client error:', error);
+  console.error('❌ Discord client error:', error);
 });
 
 process.on('unhandledRejection', error => {
-  console.error('Unhandled promise rejection:', error);
+  console.error('❌ Unhandled promise rejection:', error);
 });
 
-// Login to Discord
-client.login(process.env.DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN);
+process.on('uncaughtException', error => {
+  console.error('❌ Uncaught exception:', error);
+});
+
+// Login to Discord with proper error handling
+if (!process.env.DISCORD_BOT_TOKEN) {
+  console.error('❌ DISCORD_BOT_TOKEN이 설정되지 않았습니다!');
+  process.exit(1);
+}
+
+client.login(process.env.DISCORD_BOT_TOKEN).catch(error => {
+  console.error('❌ Discord 로그인 실패:', error);
+  process.exit(1);
+});
 
 export { client };
