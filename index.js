@@ -30,13 +30,20 @@ client.voiceSessions = new Map(); // Track voice sessions
 const commandsPath = join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
+console.log(`📁 명령어 폴더에서 ${commandFiles.length}개의 파일을 발견했습니다:`, commandFiles);
+
 for (const file of commandFiles) {
   const filePath = join(commandsPath, file);
-  const command = await import(filePath);
-  if ('data' in command.default && 'execute' in command.default) {
-    client.commands.set(command.default.data.name, command.default);
-  } else {
-    console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+  try {
+    const command = await import(filePath);
+    if ('data' in command.default && 'execute' in command.default) {
+      client.commands.set(command.default.data.name, command.default);
+      console.log(`✅ 명령어 로드됨: ${command.default.data.name}`);
+    } else {
+      console.log(`❌ [WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+    }
+  } catch (error) {
+    console.error(`❌ 명령어 로드 실패 (${file}):`, error);
   }
 }
 
@@ -62,6 +69,9 @@ client.once('ready', async () => {
     // Connect to database
     await connectDatabase();
     
+    // 자동으로 슬래시 명령어 등록
+    await deployCommands();
+    
     // Set bot status
     client.user.setActivity('레벨링 시스템 | /profile', { type: 'WATCHING' });
     
@@ -71,6 +81,46 @@ client.once('ready', async () => {
     // 데이터베이스 연결 실패해도 봇은 계속 실행
   }
 });
+
+// 자동 명령어 배포 함수
+async function deployCommands() {
+  const { REST, Routes } = await import('discord.js');
+  
+  try {
+    console.log('🔄 슬래시 명령어 등록을 시작합니다...');
+    
+    // 명령어 데이터 수집
+    const commands = [];
+    for (const [name, command] of client.commands) {
+      commands.push(command.data.toJSON());
+    }
+    
+    console.log(`📋 ${commands.length}개의 명령어를 발견했습니다:`, commands.map(cmd => cmd.name));
+    
+    // Discord REST API 클라이언트 생성
+    const rest = new REST().setToken(process.env.DISCORD_BOT_TOKEN);
+    
+    // 기존 명령어 삭제
+    console.log('🗑️  기존 글로벌 명령어를 삭제합니다...');
+    await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), { body: [] });
+    
+    // 새 명령어 등록
+    console.log('🚀 새로운 기로벌 명령어를 등록합니다...');
+    const data = await rest.put(
+      Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
+      { body: commands }
+    );
+    
+    console.log(`✅ ${data.length}개의 슬래시 명령어가 성공적으로 등록되었습니다!`);
+    console.log('명령어 목록:', data.map(cmd => `/${cmd.name}`).join(', '));
+    
+  } catch (error) {
+    console.error('❌ 명령어 등록 실패:', error);
+    if (error.code === 50001) {
+      console.error('권한 오류: 봇에게 applications.commands 권한이 있는지 확인하세요.');
+    }
+  }
+}
 
 // Handle interactions
 client.on('interactionCreate', async interaction => {
