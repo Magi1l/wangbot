@@ -31,6 +31,18 @@ const rest = new REST().setToken(process.env.DISCORD_BOT_TOKEN);
 // Deploy commands
 (async () => {
   try {
+    console.log('🔍 환경 변수 확인 중...');
+    console.log('DISCORD_BOT_TOKEN:', process.env.DISCORD_BOT_TOKEN ? '설정됨' : '❌ 누락');
+    console.log('DISCORD_CLIENT_ID:', process.env.DISCORD_CLIENT_ID ? '설정됨' : '❌ 누락');
+    
+    if (!process.env.DISCORD_BOT_TOKEN || !process.env.DISCORD_CLIENT_ID) {
+      console.error('❌ 필수 환경 변수가 누락되었습니다!');
+      return;
+    }
+
+    console.log(`📋 로드된 명령어: ${commands.length}개`);
+    commands.forEach(cmd => console.log(`  - ${cmd.name}: ${cmd.description}`));
+
     // 1단계: 기존 명령어 모두 삭제
     console.log('🗑️ 기존 슬래시 명령어들을 삭제하는 중...');
     await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), { body: [] });
@@ -45,7 +57,14 @@ const rest = new REST().setToken(process.env.DISCORD_BOT_TOKEN);
     );
 
     console.log(`🎉 ${data.length}개의 슬래시 명령어가 성공적으로 등록되었습니다!`);
+    console.log('⏰ 명령어가 Discord에 나타나기까지 최대 1시간이 걸릴 수 있습니다.');
   } catch (error) {
     console.error('❌ 명령어 배포 중 오류 발생:', error);
+    if (error.code) {
+      console.error('오류 코드:', error.code);
+    }
+    if (error.status) {
+      console.error('HTTP 상태:', error.status);
+    }
   }
 })();
