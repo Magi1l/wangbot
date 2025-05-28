@@ -12,7 +12,8 @@
     "discord.js": "^14.14.1",
     "canvas": "^2.11.2",
     "mongodb": "^6.3.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2"
   },
   "keywords": ["discord", "bot", "leveling", "xp"],
   "author": "LevelBot Team",
