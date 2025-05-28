@@ -1,13 +1,13 @@
 import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js';
-import { generateProfileCard } from '../utils/profileCard.js';
 import { getUserServerData } from '../utils/database.js';
+import fetch from 'node-fetch';
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('프로필')
+    .setName('profile')
     .setDescription('사용자의 프로필 카드를 표시합니다')
     .addUserOption(option =>
-      option.setName('유저')
+      option.setName('user')
         .setDescription('프로필을 확인할 유저')
         .setRequired(false)
     ),
@@ -16,7 +16,7 @@ export default {
     await interaction.deferReply();
 
     try {
-      const targetUser = interaction.options.getUser('유저') || interaction.user;
+      const targetUser = interaction.options.getUser('user') || interaction.user;
       const guild = interaction.guild;
 
       // Get user data from database
@@ -69,12 +69,22 @@ export default {
         }))
       };
 
-      // Generate profile card image
-      const cardBuffer = await generateProfileCard(profileData);
+      // Get profile card from dashboard API
+      const dashboardUrl = 'https://wangbotdash-up.railway.app'; // 대시보드 URL
+      const profileCardUrl = `${dashboardUrl}/api/profile-card/${targetUser.id}/${guild.id}`;
       
-      if (!cardBuffer) {
+      let cardBuffer;
+      try {
+        const response = await fetch(profileCardUrl);
+        if (response.ok) {
+          cardBuffer = await response.buffer();
+        } else {
+          throw new Error('Failed to fetch profile card');
+        }
+      } catch (error) {
+        console.error('Error fetching profile card from dashboard:', error);
         return await interaction.editReply({
-          content: '프로필 카드 생성 중 오류가 발생했습니다.',
+          content: '프로필 카드를 불러오는 중 오류가 발생했습니다. 대시보드에서 프로필을 설정했는지 확인해주세요.',
           ephemeral: true
         });
       }
