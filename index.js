@@ -105,7 +105,7 @@ async function deployCommands() {
     await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID), { body: [] });
     
     // 새 명령어 등록
-    console.log('🚀 새로운 기로벌 명령어를 등록합니다...');
+    console.log('🚀 새로운 글로벌 명령어를 등록합니다...');
     const data = await rest.put(
       Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
       { body: commands }
