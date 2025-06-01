@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js';
-import { getUserServerData } from '../utils/database.js';
+import { getUserServerData, connectDatabase } from '../utils/database.js';
 import fetch from 'node-fetch';
 
 export default {
@@ -19,6 +19,9 @@ export default {
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const guild = interaction.guild;
 
+      // 데이터베이스 연결 확인
+      await connectDatabase();
+      
       // Get user data from database with timeout
       const userData = await Promise.race([
         getUserServerData(targetUser.id, guild.id),

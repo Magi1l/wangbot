@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { getUserServerData, getUserRank } from '../utils/database.js';
+import { getUserServerData, getUserRank, connectDatabase } from '../utils/database.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -19,6 +19,9 @@ export default {
       const serverId = interaction.guild.id;
       const userId = targetUser.id;
 
+      // 데이터베이스 연결 확인
+      await connectDatabase();
+      
       // 데이터베이스에서 사용자 데이터 가져오기
       const userData = await getUserServerData(userId, serverId);
       

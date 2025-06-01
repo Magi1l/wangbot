@@ -74,12 +74,9 @@ client.once('ready', async () => {
     
     console.log('🎉 봇이 완전히 준비되었습니다!');
     
-    // 명령어 등록은 선택사항으로 처리 (실패해도 봇은 계속 작동)
-    try {
-      await deployCommands();
-    } catch (cmdError) {
-      console.log('⚠️  명령어 자동 등록 실패 - 수동으로 등록하세요:', cmdError.message);
-    }
+    // 명령어 등록을 건너뜀 - 수동으로 등록된 명령어를 사용
+    console.log('📝 슬래시 명령어는 수동으로 등록해주세요.');
+    console.log('사용 가능한 명령어:', Array.from(client.commands.keys()).join(', '));
   } catch (error) {
     console.error('❌ 봇 초기화 중 오류:', error);
     // 데이터베이스 연결 실패해도 봇은 계속 실행
