@@ -13,19 +13,23 @@ export default {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply();
-
     try {
+      await interaction.deferReply();
+
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const guild = interaction.guild;
 
-      // Get user data from database
-      const userData = await getUserServerData(targetUser.id, guild.id);
+      // Get user data from database with timeout
+      const userData = await Promise.race([
+        getUserServerData(targetUser.id, guild.id),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database timeout')), 2000)
+        )
+      ]);
       
       if (!userData) {
         return await interaction.editReply({
-          content: '해당 유저의 데이터를 찾을 수 없습니다. 서버에서 활동한 후 다시 시도해주세요.',
-          ephemeral: true
+          content: '해당 유저의 데이터를 찾을 수 없습니다. 서버에서 활동한 후 다시 시도해주세요.'
         });
       }
 

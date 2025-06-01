@@ -154,14 +154,33 @@ export async function getChannelConfig(channelId, serverId) {
       serverId: serverId 
     });
     
-    return config || { 
-      messageXpMultiplier: 1.0, 
-      voiceXpMultiplier: 1.0, 
-      isActive: true 
+    // Return config with proper field names that match what the level system expects
+    if (config) {
+      return {
+        messageXp: config.messageXp || 15,
+        voiceXpPerMinute: config.voiceXpPerMinute || 5,
+        cooldown: config.cooldown || 60,
+        minUsersForVoice: config.minUsersForVoice || 2,
+        enabled: config.enabled !== false
+      };
+    }
+    
+    return { 
+      messageXp: 15,
+      voiceXpPerMinute: 5,
+      cooldown: 60,
+      minUsersForVoice: 2,
+      enabled: true
     };
   } catch (error) {
     console.error('Error getting channel config:', error);
-    return { messageXpMultiplier: 1.0, voiceXpMultiplier: 1.0, isActive: true };
+    return { 
+      messageXp: 15,
+      voiceXpPerMinute: 5,
+      cooldown: 60,
+      minUsersForVoice: 2,
+      enabled: true
+    };
   }
 }
 

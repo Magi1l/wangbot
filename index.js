@@ -69,13 +69,17 @@ client.once('ready', async () => {
     // Connect to database
     await connectDatabase();
     
-    // 자동으로 슬래시 명령어 등록
-    await deployCommands();
-    
     // Set bot status
     client.user.setActivity('레벨링 시스템 | /profile', { type: 'WATCHING' });
     
     console.log('🎉 봇이 완전히 준비되었습니다!');
+    
+    // 명령어 등록은 선택사항으로 처리 (실패해도 봇은 계속 작동)
+    try {
+      await deployCommands();
+    } catch (cmdError) {
+      console.log('⚠️  명령어 자동 등록 실패 - 수동으로 등록하세요:', cmdError.message);
+    }
   } catch (error) {
     console.error('❌ 봇 초기화 중 오류:', error);
     // 데이터베이스 연결 실패해도 봇은 계속 실행
