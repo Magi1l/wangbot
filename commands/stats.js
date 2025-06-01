@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import fetch from 'node-fetch';
 
 export default {
   data: new SlashCommandBuilder()
@@ -18,7 +19,8 @@ export default {
       await interaction.deferReply();
 
       // Dashboard API에서 사용자 통계 가져오기
-      const response = await fetch(`http://localhost:5000/api/user-stats/${userId}/${serverId}`);
+      const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:5000';
+      const response = await fetch(`${dashboardUrl}/api/user-stats/${userId}/${serverId}`);
       
       if (!response.ok) {
         if (response.status === 404) {

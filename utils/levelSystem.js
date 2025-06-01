@@ -1,4 +1,4 @@
-import { getUserServerData, updateUserServerData, createUserServerData } from './database.js';
+import { getUserServerData, updateUserServerData, createUserServerData, getChannelConfig as getChannelConfigFromDB, logActivity as logActivityToDB } from './database.js';
 
 // XP calculation constants
 const BASE_XP_PER_LEVEL = 100;
@@ -192,8 +192,16 @@ export function calculateLevelProgress(xp, level) {
 
 async function getChannelConfig(channelId, guildId) {
   try {
-    // This would fetch from the web dashboard's database
-    // For now, return default values
+    const config = await getChannelConfigFromDB(channelId, guildId);
+    return {
+      messageXp: config.messageXp || 15,
+      voiceXpPerMinute: config.voiceXpPerMinute || 5,
+      cooldown: config.cooldown || 60,
+      minUsersForVoice: config.minUsersForVoice || 2,
+      enabled: config.enabled !== false
+    };
+  } catch (error) {
+    console.error('Error fetching channel config:', error);
     return {
       messageXp: 15,
       voiceXpPerMinute: 5,
@@ -201,16 +209,12 @@ async function getChannelConfig(channelId, guildId) {
       minUsersForVoice: 2,
       enabled: true
     };
-  } catch (error) {
-    console.error('Error fetching channel config:', error);
-    return null;
   }
 }
 
 async function logActivity(activityData) {
   try {
-    // This would integrate with the web dashboard's database
-    console.log('Activity logged:', activityData);
+    await logActivityToDB(activityData);
   } catch (error) {
     console.error('Error logging activity:', error);
   }
